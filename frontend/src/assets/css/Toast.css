@@ -1,0 +1,26 @@
+/***
+    Toast.css
+    トースト通知のスタイル
+    2025年07月16日
+    作成者：サンタナム理志
+***/
+
+.toast-base {
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Noto Sans JP', 'Yu Gothic', sans-serif;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+}
+
+.toast-success {
+  border-left: 6px solid #10b981;
+}
+
+.toast-error {
+  border-left: 6px solid #ef4444;
+}
+
+.toast-info {
+  border-left: 6px solid #3b82f6;
+}

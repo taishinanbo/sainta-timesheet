@@ -1,0 +1,60 @@
+/* Backdrop and center */
+.modal-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+/* Modal box */
+.modal.loading {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  width: 360px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Horizontal layout of spinner + texts */
+.modal-loading-horizontal {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Text block on the right */
+.modal-loading-texts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* Icon + 報告 in row */
+.modal-title-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+
+.modal-icon {
+  font-size: 1.2rem;
+  color: #444;
+}
+
+.modal-title {
+  font-size: 1.1rem;
+  color: #222;
+  margin: 0;
+}
+
+.modal-message {
+  font-size: 0.95rem;
+  color: #555;
+}

@@ -11,7 +11,7 @@ app.use(cors());
 app.use(express.json());
 
 // MongoDB接続
-mongoose.connect(process.env.MONGODB_URI, {
+mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
@@ -22,6 +22,12 @@ mongoose.connect(process.env.MONGODB_URI, {
 app.get('/', (req, res) => {
   res.send('API is running');
 });
+
+// ルーティング
+const authRoutes = require('./routes/authRoutes');
+const timeRoutes = require('./routes/timeRoutes');
+app.use('/api/auth', authRoutes);
+app.use('/api/time', timeRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
