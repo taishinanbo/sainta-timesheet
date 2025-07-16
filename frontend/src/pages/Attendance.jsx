@@ -1,20 +1,27 @@
-import React, { useState } from 'react';
-import './Attendance.css'; // スタイルシートをインポート
+import React, { useState, useEffect } from 'react';
+import './Attendance.css';
 
 const users = [
-  { id: 'user1', name: '山田 太郎' },
-  { id: 'user2', name: '佐藤 花子' },
-  { id: 'user3', name: '鈴木 次郎' },
-  { id: 'user4', name: '田中 美咲' },
-  { id: 'user5', name: '高橋 一郎' },
-  { id: 'user6', name: '伊藤 玲奈' },
+  { id: 'user1', name: 'リシサンタナむ' },
+  { id: 'user2', name: '難波 泰世' },
+  { id: 'user3', name: '村岡 小夏' },
 ];
 
-function Attendance() {
+function AttendanceApp() {
   const [selectedUser, setSelectedUser] = useState(null);
-  const [selectedAction, setSelectedAction] = useState(null);
   const [actionModalOpen, setActionModalOpen] = useState(false);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [selectedAction, setSelectedAction] = useState(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [lastMessage, setLastMessage] = useState('');
+  const [timeRecords, setTimeRecords] = useState({}); // { userId: { 出勤: Date, 退勤: Date, 休憩開始: Date, 休憩終了: Date } }
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const openActionModal = (user) => {
     setSelectedUser(user);
@@ -39,11 +46,39 @@ function Attendance() {
 
   const confirmAction = () => {
     const now = new Date();
-    console.log(
-      `${selectedUser.name} が ${selectedAction} を ${now.toLocaleTimeString()} に実行しました。`
-    );
+    const timeText = `${now.getHours()}時${now.getMinutes()}分`;
 
-    // ここにAPI送信処理を書く
+    setTimeRecords(prev => {
+      const userRecord = prev[selectedUser.id] || {};
+      let newRecord = { ...userRecord };
+
+      if (selectedAction === '出勤') {
+        newRecord.出勤 = now;
+        delete newRecord.退勤;
+        delete newRecord.休憩開始;
+        delete newRecord.休憩終了;
+        setLastMessage(`${selectedUser.name} さんは ${timeText} に出勤しました。`);
+      } else if (selectedAction === '退勤') {
+        newRecord.退勤 = now;
+        if (userRecord.出勤) {
+          const diffMs = now - userRecord.出勤;
+          const hours = Math.floor(diffMs / (1000 * 60 * 60));
+          const minutes = Math.floor((diffMs / (1000 * 60)) % 60);
+          setLastMessage(`${selectedUser.name} さんは ${timeText} に退勤しました。勤務時間は ${hours} 時間 ${minutes} 分です。`);
+        } else {
+          setLastMessage(`${selectedUser.name} さんは ${timeText} に退勤しました。`);
+        }
+      } else if (selectedAction === '休憩開始') {
+        newRecord.休憩開始 = now;
+        delete newRecord.休憩終了;
+        setLastMessage(`${selectedUser.name} さんは ${timeText} に休憩を開始しました。`);
+      } else if (selectedAction === '休憩終了') {
+        newRecord.休憩終了 = now;
+        setLastMessage(`${selectedUser.name} さんは ${timeText} に休憩を終了しました。`);
+      }
+
+      return { ...prev, [selectedUser.id]: newRecord };
+    });
 
     closeConfirmModal();
     closeActionModal();
@@ -53,19 +88,35 @@ function Attendance() {
     <div className="attendance-page">
       <h1 className="attendance-title">出勤管理</h1>
 
-      <div className="attendance-grid">
-        {users.map((user) => (
-          <button
-            key={user.id}
-            className="attendance-card"
-            onClick={() => openActionModal(user)}
-          >
-            {user.name}
-          </button>
-        ))}
+      {/* 現在時刻 */}
+      <div className="clock-display">
+        現在時刻：{currentTime.toLocaleTimeString()}
       </div>
 
-      {actionModalOpen && selectedUser && (
+      <div className="attendance-grid">
+        {users.map((user) => {
+          const record = timeRecords[user.id] || {};
+          const isWorking = record.出勤 && !record.退勤;
+          const isResting = isWorking && record.休憩開始 && (!record.休憩終了 || record.休憩終了 < record.休憩開始);
+          let classNames = 'attendance-card';
+          if (isResting) {
+            classNames += ' resting';
+          } else if (isWorking) {
+            classNames += ' working';
+          }
+          return (
+            <button
+              key={user.id}
+              className={classNames}
+              onClick={() => openActionModal(user)}
+            >
+              {user.name}
+            </button>
+          );
+        })}
+      </div>
+
+      {actionModalOpen && (
         <Modal onClose={closeActionModal}>
           <h2 className="modal-title">{selectedUser.name} さんの操作</h2>
           <div className="modal-actions">
@@ -78,7 +129,7 @@ function Attendance() {
         </Modal>
       )}
 
-      {confirmModalOpen && selectedUser && selectedAction && (
+      {confirmModalOpen && (
         <Modal onClose={closeConfirmModal}>
           <p className="confirm-text">
             {selectedUser.name} さんを <strong>{selectedAction}</strong> します。よろしいですか？
@@ -89,6 +140,9 @@ function Attendance() {
           </div>
         </Modal>
       )}
+
+      {/* メッセージ表示 */}
+      {lastMessage && <div className="action-message">{lastMessage}</div>}
     </div>
   );
 }
@@ -96,11 +150,11 @@ function Attendance() {
 function Modal({ children, onClose }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content" onClick={e => e.stopPropagation()}>
         {children}
       </div>
     </div>
   );
 }
 
-export default Attendance;
+export default AttendanceApp;
