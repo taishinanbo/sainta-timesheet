@@ -1,12 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const authMiddleware = require('../middleware/auth');
+
+router.use(authMiddleware);
 
 function getTodayKey() {
-  return new Date().toISOString().split('T')[0]; // e.g. 2025-07-16
+  return new Date().toISOString().split('T')[0]; // 例: 2025-07-17
 }
 
-// 🟢 Clock In
+// 出勤
 router.post('/:userId/clock-in', async (req, res) => {
   const { userId } = req.params;
   const today = getTodayKey();
@@ -22,6 +25,7 @@ router.post('/:userId/clock-in', async (req, res) => {
 
     log.clockIn = now;
     log.breaks = [];
+    log.clockOut = null;
     user.userWorkLogs.set(today, log);
     await user.save();
 
@@ -31,7 +35,7 @@ router.post('/:userId/clock-in', async (req, res) => {
   }
 });
 
-// 🟠 Break Start
+// 休憩開始
 router.post('/:userId/break-start', async (req, res) => {
   const { userId } = req.params;
   const today = getTodayKey();
@@ -43,7 +47,6 @@ router.post('/:userId/break-start', async (req, res) => {
 
     const log = user.userWorkLogs.get(today);
     if (!log || !log.clockIn) return res.status(400).json({ message: 'Not clocked in yet' });
-
     if (log.clockOut) return res.status(400).json({ message: 'Already clocked out' });
 
     const breaks = log.breaks || [];
@@ -51,7 +54,7 @@ router.post('/:userId/break-start', async (req, res) => {
       return res.status(400).json({ message: 'Already on break' });
     }
 
-    breaks.push({ start: now });
+    breaks.push({ start: now, end: null });
     log.breaks = breaks;
     user.userWorkLogs.set(today, log);
     await user.save();
@@ -62,7 +65,7 @@ router.post('/:userId/break-start', async (req, res) => {
   }
 });
 
-// 🔵 Break End
+// 休憩終了
 router.post('/:userId/break-end', async (req, res) => {
   const { userId } = req.params;
   const today = getTodayKey();
@@ -90,7 +93,7 @@ router.post('/:userId/break-end', async (req, res) => {
   }
 });
 
-// 🔴 Clock Out
+// 退勤
 router.post('/:userId/clock-out', async (req, res) => {
   const { userId } = req.params;
   const today = getTodayKey();
@@ -102,7 +105,6 @@ router.post('/:userId/clock-out', async (req, res) => {
 
     const log = user.userWorkLogs.get(today);
     if (!log || !log.clockIn) return res.status(400).json({ message: 'Not clocked in yet' });
-
     if (log.clockOut) return res.status(400).json({ message: 'Already clocked out' });
 
     log.clockOut = now;

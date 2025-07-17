@@ -1,22 +1,21 @@
+// frontend/utils/FetchService.jsx
+
 /**
- * @file Fetch.js
- * @description
- * APIエンドポイントにリクエストを送信するための汎用関数を定義しています。
+ * @file FetchService.jsx
+ * @description APIエンドポイントにリクエストを送信するための汎用関数
  */
 
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5050/api'; // APIのURL
+// ✅ Viteでは `import.meta.env.VITE_〇〇` を使う！
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050/api';
 
 /**
  * @function fetchData
- * @description
- * 指定されたメソッドでAPIリクエストを送信します。
- * @param {string} method - HTTPメソッド ('get', 'post', 'put', 'delete'など)
- * @param {string} endpoint - エンドポイントのパス（例: '/auth/login'）
- * @param {Object} [data] - リクエストボディ（GET/DELETEには不要）
- * @param {Object} [options] - その他のaxiosオプション（headersなど）
- * @returns {Promise<Object>} - レスポンスデータ
+ * @param {string} method - 'get' | 'post' | 'put' | 'delete'
+ * @param {string} endpoint - APIのエンドポイント（例: '/auth/login'）
+ * @param {Object} [data={}] - リクエストデータ
+ * @param {Object} [options={}] - axiosの追加オプション（headersなど）
  */
 export const fetchData = (method, endpoint, data = {}, options = {}) => {
   const url = `${API_URL}${endpoint}`;

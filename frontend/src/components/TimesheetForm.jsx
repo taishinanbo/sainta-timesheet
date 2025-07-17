@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 
 function TimesheetForm({ onAdd }) {
-  const [userId, setUserId] = useState('');
   const [date, setDate] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
@@ -10,12 +9,22 @@ function TimesheetForm({ onAdd }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const userId = localStorage.getItem('userId');
+    const token = localStorage.getItem('token');
+
+    if (!userId || !token) {
+      alert('ログインしてください');
+      return;
+    }
+
     const newSheet = { userId, date, startTime, endTime, description };
 
-    // バックエンドにPOST
     const res = await fetch('/api/timesheets', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
       body: JSON.stringify(newSheet),
     });
 
@@ -24,27 +33,18 @@ function TimesheetForm({ onAdd }) {
       onAdd(created);
 
       // フォームをリセット
-      setUserId('');
       setDate('');
       setStartTime('');
       setEndTime('');
       setDescription('');
     } else {
-      alert('エラーが発生しました');
+      const err = await res.json();
+      alert('エラー: ' + (err.message || '送信できませんでした'));
     }
   };
 
   return (
     <form onSubmit={handleSubmit} style={{ marginBottom: 40 }}>
-      <div>
-        <label>ユーザーID: </label>
-        <input
-          type="text"
-          value={userId}
-          onChange={(e) => setUserId(e.target.value)}
-          required
-        />
-      </div>
       <div>
         <label>日付: </label>
         <input

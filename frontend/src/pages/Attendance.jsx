@@ -1,4 +1,6 @@
+// src/components/AttendanceApp.jsx
 import React, { useState, useEffect } from 'react';
+import PasswordModal from '../components/PasswordModal'; // パスワード入力モーダル
 import './Attendance.css';
 
 const users = [
@@ -7,19 +9,22 @@ const users = [
   { id: 'user3', name: '村岡 小夏' },
 ];
 
+// ログイン後に保存したJWTトークンをlocalStorageから取得する想定
+const getToken = () => localStorage.getItem('token') || '';
+
 function AttendanceApp() {
+  const token = getToken();
+
   const [selectedUser, setSelectedUser] = useState(null);
   const [actionModalOpen, setActionModalOpen] = useState(false);
-  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [selectedAction, setSelectedAction] = useState(null);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [lastMessage, setLastMessage] = useState('');
-  const [timeRecords, setTimeRecords] = useState({}); // { userId: { 出勤: Date, 退勤: Date, 休憩開始: Date, 休憩終了: Date } }
+  const [timeRecords, setTimeRecords] = useState({}); // { userId: { 出勤, 退勤, 休憩開始, 休憩終了 }}
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -34,123 +39,129 @@ function AttendanceApp() {
     setSelectedUser(null);
   };
 
-  const openConfirmModal = (action) => {
+  const onSelectAction = (action) => {
     setSelectedAction(action);
-    setConfirmModalOpen(true);
+    setActionModalOpen(false);
+    setPasswordModalOpen(true);
   };
 
-  const closeConfirmModal = () => {
-    setConfirmModalOpen(false);
-    setSelectedAction(null);
-  };
+  // APIへ打刻アクションを送信
+  const postClockAction = async (userId, action) => {
+    let endpoint = '';
+    if (action === '出勤') endpoint = 'clock-in';
+    else if (action === '退勤') endpoint = 'clock-out';
+    else if (action === '休憩開始') endpoint = 'break-start';
+    else if (action === '休憩終了') endpoint = 'break-end';
+    else throw new Error('不明な操作です');
 
-  const confirmAction = () => {
-    const now = new Date();
-    const timeText = `${now.getHours()}時${now.getMinutes()}分`;
-
-    setTimeRecords(prev => {
-      const userRecord = prev[selectedUser.id] || {};
-      let newRecord = { ...userRecord };
-
-      if (selectedAction === '出勤') {
-        newRecord.出勤 = now;
-        delete newRecord.退勤;
-        delete newRecord.休憩開始;
-        delete newRecord.休憩終了;
-        setLastMessage(`${selectedUser.name} さんは ${timeText} に出勤しました。`);
-      } else if (selectedAction === '退勤') {
-        newRecord.退勤 = now;
-        if (userRecord.出勤) {
-          const diffMs = now - userRecord.出勤;
-          const hours = Math.floor(diffMs / (1000 * 60 * 60));
-          const minutes = Math.floor((diffMs / (1000 * 60)) % 60);
-          setLastMessage(`${selectedUser.name} さんは ${timeText} に退勤しました。勤務時間は ${hours} 時間 ${minutes} 分です。`);
-        } else {
-          setLastMessage(`${selectedUser.name} さんは ${timeText} に退勤しました。`);
-        }
-      } else if (selectedAction === '休憩開始') {
-        newRecord.休憩開始 = now;
-        delete newRecord.休憩終了;
-        setLastMessage(`${selectedUser.name} さんは ${timeText} に休憩を開始しました。`);
-      } else if (selectedAction === '休憩終了') {
-        newRecord.休憩終了 = now;
-        setLastMessage(`${selectedUser.name} さんは ${timeText} に休憩を終了しました。`);
-      }
-
-      return { ...prev, [selectedUser.id]: newRecord };
+    const res = await fetch(`/api/timesheets/${userId}/${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
     });
 
-    closeConfirmModal();
-    closeActionModal();
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.message || '打刻に失敗しました');
+    }
+
+    const data = await res.json();
+    return data.log; // バックエンドから返る最新ログ
+  };
+
+  // パスワード認証成功時の処理
+  const onPasswordConfirmSuccess = async () => {
+    setPasswordModalOpen(false);
+    try {
+      const log = await postClockAction(selectedUser.id, selectedAction);
+      updateTimeRecords(selectedUser.id, log);
+      const timeText = new Date().toLocaleTimeString();
+      setLastMessage(`${selectedUser.name} さんの${selectedAction}が${timeText}に完了しました。`);
+    } catch (err) {
+      setLastMessage(`エラー: ${err.message}`);
+    }
+  };
+
+  // サーバーの勤怠ログを画面の状態に反映
+  const updateTimeRecords = (userId, log) => {
+    setTimeRecords((prev) => {
+      const newRecords = { ...prev };
+      newRecords[userId] = {
+        出勤: log.clockIn ? new Date(log.clockIn) : null,
+        退勤: log.clockOut ? new Date(log.clockOut) : null,
+        休憩開始:
+          log.breaks && log.breaks.length > 0 && log.breaks[log.breaks.length - 1].start
+            ? new Date(log.breaks[log.breaks.length - 1].start)
+            : null,
+        休憩終了:
+          log.breaks && log.breaks.length > 0 && log.breaks[log.breaks.length - 1].end
+            ? new Date(log.breaks[log.breaks.length - 1].end)
+            : null,
+      };
+      return newRecords;
+    });
   };
 
   return (
     <div className="attendance-page">
       <h1 className="attendance-title">出勤管理</h1>
 
-      {/* 現在時刻 */}
-      <div className="clock-display">
-        現在時刻：{currentTime.toLocaleTimeString()}
-      </div>
+      <div className="clock-display">現在時刻：{currentTime.toLocaleTimeString()}</div>
 
       <div className="attendance-grid">
         {users.map((user) => {
           const record = timeRecords[user.id] || {};
           const isWorking = record.出勤 && !record.退勤;
-          const isResting = isWorking && record.休憩開始 && (!record.休憩終了 || record.休憩終了 < record.休憩開始);
+          const isResting =
+            isWorking && record.休憩開始 && (!record.休憩終了 || record.休憩終了 < record.休憩開始);
           let classNames = 'attendance-card';
-          if (isResting) {
-            classNames += ' resting';
-          } else if (isWorking) {
-            classNames += ' working';
-          }
+          if (isResting) classNames += ' resting';
+          else if (isWorking) classNames += ' working';
+
           return (
-            <button
-              key={user.id}
-              className={classNames}
-              onClick={() => openActionModal(user)}
-            >
+            <button key={user.id} className={classNames} onClick={() => openActionModal(user)}>
               {user.name}
             </button>
           );
         })}
       </div>
 
-      {actionModalOpen && (
+      {actionModalOpen && selectedUser && (
         <Modal onClose={closeActionModal}>
           <h2 className="modal-title">{selectedUser.name} さんの操作</h2>
           <div className="modal-actions">
-            <button onClick={() => openConfirmModal('出勤')}>出勤</button>
-            <button onClick={() => openConfirmModal('休憩開始')}>休憩開始</button>
-            <button onClick={() => openConfirmModal('休憩終了')}>休憩終了</button>
-            <button onClick={() => openConfirmModal('退勤')}>退勤</button>
-            <button className="modal-cancel" onClick={closeActionModal}>キャンセル</button>
+            <button onClick={() => onSelectAction('出勤')}>出勤</button>
+            <button onClick={() => onSelectAction('休憩開始')}>休憩開始</button>
+            <button onClick={() => onSelectAction('休憩終了')}>休憩終了</button>
+            <button onClick={() => onSelectAction('退勤')}>退勤</button>
+            <button className="modal-cancel" onClick={closeActionModal}>
+              キャンセル
+            </button>
           </div>
         </Modal>
       )}
 
-      {confirmModalOpen && (
-        <Modal onClose={closeConfirmModal}>
-          <p className="confirm-text">
-            {selectedUser.name} さんを <strong>{selectedAction}</strong> します。よろしいですか？
-          </p>
-          <div className="confirm-actions">
-            <button onClick={confirmAction}>はい</button>
-            <button className="modal-cancel" onClick={closeConfirmModal}>いいえ</button>
-          </div>
-        </Modal>
+      {passwordModalOpen && selectedUser && selectedAction && (
+        <PasswordModal
+          user={selectedUser}
+          action={selectedAction}
+          onClose={() => setPasswordModalOpen(false)}
+          onSuccess={onPasswordConfirmSuccess}
+        />
       )}
 
-      {/* メッセージ表示 */}
       {lastMessage && <div className="action-message">{lastMessage}</div>}
     </div>
   );
 }
 
+// シンプルなモーダルコンポーネント
 function Modal({ children, onClose }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         {children}
       </div>
     </div>
