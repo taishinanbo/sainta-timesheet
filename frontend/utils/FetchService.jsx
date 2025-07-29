@@ -8,7 +8,7 @@
 import axios from 'axios';
 
 // ✅ Viteでは `import.meta.env.VITE_〇〇` を使う！
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5500/api';
 
 /**
  * @function fetchData
