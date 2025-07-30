@@ -1,20 +1,9 @@
-import React, { useState, useEffect } from 'react';
-// import TimesheetForm from '../components/TimesheetForm.jsx';
-// import TimesheetList from '../components/TimesheetList.jsx';
-import Attendance from "./Attendance.jsx"
+import React, { useState } from 'react';
+import Attendance from './Attendance.jsx';
 
 function Home() {
   const [timesheets, setTimesheets] = useState([]);
 
-  // ここでバックエンドからデータ取得（例）
-  useEffect(() => {
-    fetch('/api/timesheets')
-      .then(res => res.json())
-      .then(data => setTimesheets(data))
-      .catch(console.error);
-  }, []);
-
-  // 新規作成時のstate更新
   const addTimesheet = (newSheet) => {
     setTimesheets([...timesheets, newSheet]);
   };

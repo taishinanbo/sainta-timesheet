@@ -35,7 +35,7 @@ const Register = () => {
             );
 
             showSuccess('ユーザー登録に成功しました！');
-            navigate('/login');
+            navigate('/');
         } catch (err) {
             showError(err.response?.data?.message || 'ユーザー登録に失敗しました');
         } finally {

@@ -21,11 +21,11 @@ export const fetchData = (method, endpoint, data = {}, options = {}) => {
   const url = `${API_URL}${endpoint}`;
   const token = localStorage.getItem('sainta-token');
 
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(token && { 'sainta-token': token }),
-    ...options.headers
-  };
+ const headers = {
+  'Content-Type': 'application/json',
+  ...(token && { Authorization: `Bearer ${token}` }),
+  ...options.headers
+};
 
   return axios({ method, url, data, headers, ...options })
     .then(res => res.data)

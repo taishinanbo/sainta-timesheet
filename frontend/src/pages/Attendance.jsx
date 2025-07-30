@@ -1,31 +1,57 @@
-// src/components/AttendanceApp.jsx
 import React, { useState, useEffect } from 'react';
-import PasswordModal from '../components/PasswordModal'; // パスワード入力モーダル
+import { useNavigate } from 'react-router-dom';
+import PasswordModal from '../components/PasswordModal';
 import './Attendance.css';
 
-const users = [
-  { id: 'user1', name: 'リシサンタナむ' },
-  { id: 'user2', name: '難波 泰世' },
-  { id: 'user3', name: '村岡 小夏' },
-];
-
-// ログイン後に保存したJWTトークンをlocalStorageから取得する想定
-const getToken = () => localStorage.getItem('token') || '';
+const getToken = () => {
+  return localStorage.getItem('token') || '';
+};
 
 function AttendanceApp() {
-  const token = getToken();
-
+  const navigate = useNavigate();
+  const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [actionModalOpen, setActionModalOpen] = useState(false);
   const [selectedAction, setSelectedAction] = useState(null);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [lastMessage, setLastMessage] = useState('');
-  const [timeRecords, setTimeRecords] = useState({}); // { userId: { 出勤, 退勤, 休憩開始, 休憩終了 }}
+  const [timeRecords, setTimeRecords] = useState({}); // { _id: { 出勤, 退勤, 休憩開始, 休憩終了 }}
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const token = getToken();
+      if (!token) {
+        console.warn('トークンが存在しないためユーザー取得をスキップ');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/auth/users', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          console.error('APIエラー応答:', text);
+          throw new Error('ユーザー取得に失敗しました');
+        }
+
+        const data = await res.json();
+        setUsers(data);
+      } catch (err) {
+        console.error('ユーザー取得エラー:', err);
+      }
+    };
+
+    fetchUsers();
   }, []);
 
   const openActionModal = (user) => {
@@ -45,8 +71,10 @@ function AttendanceApp() {
     setPasswordModalOpen(true);
   };
 
-  // APIへ打刻アクションを送信
-  const postClockAction = async (userId, action) => {
+  const postClockAction = async (userMongoId, action) => {
+    const token = getToken();
+    if (!token) throw new Error('トークンが見つかりません');
+
     let endpoint = '';
     if (action === '出勤') endpoint = 'clock-in';
     else if (action === '退勤') endpoint = 'clock-out';
@@ -54,7 +82,7 @@ function AttendanceApp() {
     else if (action === '休憩終了') endpoint = 'break-end';
     else throw new Error('不明な操作です');
 
-    const res = await fetch(`/api/timesheets/${userId}/${endpoint}`, {
+    const res = await fetch(`/api/timesheets/${userMongoId}/${endpoint}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -68,27 +96,25 @@ function AttendanceApp() {
     }
 
     const data = await res.json();
-    return data.log; // バックエンドから返る最新ログ
+    return data.log;
   };
 
-  // パスワード認証成功時の処理
   const onPasswordConfirmSuccess = async () => {
     setPasswordModalOpen(false);
     try {
-      const log = await postClockAction(selectedUser.id, selectedAction);
-      updateTimeRecords(selectedUser.id, log);
+      const log = await postClockAction(selectedUser._id, selectedAction);
+      updateTimeRecords(selectedUser._id, log);
       const timeText = new Date().toLocaleTimeString();
-      setLastMessage(`${selectedUser.name} さんの${selectedAction}が${timeText}に完了しました。`);
+      setLastMessage(`${selectedUser.userName} さんの${selectedAction}が${timeText}に完了しました。`);
     } catch (err) {
       setLastMessage(`エラー: ${err.message}`);
     }
   };
 
-  // サーバーの勤怠ログを画面の状態に反映
-  const updateTimeRecords = (userId, log) => {
+  const updateTimeRecords = (mongoId, log) => {
     setTimeRecords((prev) => {
       const newRecords = { ...prev };
-      newRecords[userId] = {
+      newRecords[mongoId] = {
         出勤: log.clockIn ? new Date(log.clockIn) : null,
         退勤: log.clockOut ? new Date(log.clockOut) : null,
         休憩開始:
@@ -106,23 +132,27 @@ function AttendanceApp() {
 
   return (
     <div className="attendance-page">
-      <h1 className="attendance-title">出勤管理</h1>
+      <button onClick={() => navigate('/register')} className="btn btn-secondary">
+        新規登録
+      </button>
 
+      <h1 className="attendance-title">出勤管理</h1>
       <div className="clock-display">現在時刻：{currentTime.toLocaleTimeString()}</div>
 
       <div className="attendance-grid">
         {users.map((user) => {
-          const record = timeRecords[user.id] || {};
+          const record = timeRecords[user._id] || {};
           const isWorking = record.出勤 && !record.退勤;
           const isResting =
             isWorking && record.休憩開始 && (!record.休憩終了 || record.休憩終了 < record.休憩開始);
+
           let classNames = 'attendance-card';
           if (isResting) classNames += ' resting';
           else if (isWorking) classNames += ' working';
 
           return (
-            <button key={user.id} className={classNames} onClick={() => openActionModal(user)}>
-              {user.name}
+            <button key={user._id} className={classNames} onClick={() => openActionModal(user)}>
+              {user.userName}
             </button>
           );
         })}
@@ -130,7 +160,7 @@ function AttendanceApp() {
 
       {actionModalOpen && selectedUser && (
         <Modal onClose={closeActionModal}>
-          <h2 className="modal-title">{selectedUser.name} さんの操作</h2>
+          <h2 className="modal-title">{selectedUser.userName} さんの操作</h2>
           <div className="modal-actions">
             <button onClick={() => onSelectAction('出勤')}>出勤</button>
             <button onClick={() => onSelectAction('休憩開始')}>休憩開始</button>
@@ -157,7 +187,7 @@ function AttendanceApp() {
   );
 }
 
-// シンプルなモーダルコンポーネント
+// シンプルなモーダル
 function Modal({ children, onClose }) {
   return (
     <div className="modal-overlay" onClick={onClose}>

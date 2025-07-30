@@ -7,12 +7,13 @@ import { showSuccess, showError } from '../../utils/ToastService';
 const Login = () => {
   const [identifier, setIdentifier] = useState(''); // email or userId
   const [password, setPassword] = useState('');
+  const [error, setError] = useState(''); // ← 追加！
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
-    const handleLogin = async (e) => {
-        e.preventDefault();
+  const handleLogin = async (e) => {
+      e.preventDefault();
         setError('');
         setLoading(true);
 
@@ -29,8 +30,10 @@ const Login = () => {
             showSuccess('ログインに成功しました！');
 
             navigate('/');
-        } catch (err) {
-            showError(err.response?.data?.message || 'ログインに失敗しました');
+        } catch (error) {
+          const message = error.response?.data?.message || 'ログインに失敗しました';
+          setError(message); // ← UIに表示
+          showError(message); // ← トースト通知
         } finally {
             setLoading(false);
         }

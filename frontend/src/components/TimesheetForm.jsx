@@ -10,6 +10,7 @@ function TimesheetForm({ onAdd }) {
     e.preventDefault();
 
     const userId = localStorage.getItem('userId');
+    const userName = localStorage.getItem('userName');
     const token = localStorage.getItem('token');
 
     if (!userId || !token) {
@@ -17,7 +18,7 @@ function TimesheetForm({ onAdd }) {
       return;
     }
 
-    const newSheet = { userId, date, startTime, endTime, description };
+    const newSheet = { userId, userName, date, startTime, endTime, description };
 
     const res = await fetch('/api/timesheets', {
       method: 'POST',

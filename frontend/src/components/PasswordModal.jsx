@@ -1,4 +1,3 @@
-// src/components/PasswordModal.jsx
 import React, { useState } from 'react';
 import '../assets/css/PasswordModal.css';
 
@@ -8,31 +7,31 @@ export default function PasswordModal({ user, action, onClose, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // setError('');
+    setError('');
 
-    // try {
-    //   const res = await fetch('/api/auth/verify-password', {
-    //     method: 'POST',
-    //     headers: { 'Content-Type': 'application/json' },
-    //     body: JSON.stringify({ userId: user.id, password }),
-    //   });
+    try {
+      const res = await fetch('/api/auth/verify-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userMongoId: user._id, password }),
+      });
 
-    //   if (!res.ok) {
-    //     const data = await res.json();
-    //     setError(data.message || 'パスワードが違います');
-    //     return;
-    //   }
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.message || 'パスワードが違います');
+        return;
+      }
 
       onSuccess();
-    // } catch {
-    //   setError('通信エラーが発生しました');
-    // }
+    } catch {
+      setError('通信エラーが発生しました');
+    }
   };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <h3>{user.name} さんの {action} 操作にパスワード確認が必要です</h3>
+        <h3>{user.userName} さんの {action} 操作にパスワード確認が必要です</h3>
         <form onSubmit={handleSubmit}>
           <input
             type="password"
