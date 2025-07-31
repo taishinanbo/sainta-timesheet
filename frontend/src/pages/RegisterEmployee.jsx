@@ -79,7 +79,7 @@ const Register = () => {
                         <div className="form-group">
                             <label htmlFor="userEmail">メールアドレス</label>
                             <input
-                                type="email"
+                                type="text"
                                 id="userEmail"
                                 name="userEmail"
                                 value={userInfo.userEmail}

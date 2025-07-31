@@ -16,7 +16,7 @@ function AttendanceApp() {
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [lastMessage, setLastMessage] = useState('');
-  const [timeRecords, setTimeRecords] = useState({}); // { _id: { 出勤, 退勤, 休憩開始, 休憩終了 }}
+  const [timeRecords, setTimeRecords] = useState({});
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -187,7 +187,6 @@ function AttendanceApp() {
   );
 }
 
-// シンプルなモーダル
 function Modal({ children, onClose }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
